@@ -7,6 +7,7 @@ import Landing from "./pages/Landing";
 import Intro from "./pages/Intro";
 import Subscribe from "./pages/Subscribe";
 import Workout from "./pages/Workout";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/intro" element={<Intro />} />
           <Route path="/subscribe" element={<Subscribe />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/workout" element={<Workout />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

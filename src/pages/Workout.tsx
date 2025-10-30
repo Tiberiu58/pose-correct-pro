@@ -1,17 +1,21 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Camera, StopCircle, Activity } from "lucide-react";
+import { Camera, StopCircle, Activity, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { User, Session } from "@supabase/supabase-js";
 
 const Workout = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [feedback, setFeedback] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const navigate = useNavigate();
 
   const startCamera = async () => {
     try {
@@ -86,129 +90,141 @@ const Workout = () => {
   };
 
   useEffect(() => {
+    // Set up auth state listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (!session?.user) {
+          navigate("/auth");
+        }
+      }
+    );
+
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (!session?.user) {
+        navigate("/auth");
+      }
+    });
+
     return () => {
+      subscription.unsubscribe();
       stopCamera();
     };
-  }, []);
+  }, [navigate]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast.info("Signed out");
+    navigate("/");
+  };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="container max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+    <div className="fixed inset-0 bg-background">
+      {/* Full-screen camera feed */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+      
+      {!isAnalyzing && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm">
+          <div className="text-center">
+            <Camera className="w-24 h-24 text-muted-foreground mx-auto mb-6" />
+            <p className="text-2xl text-foreground mb-2">Camera not active</p>
+            <p className="text-muted-foreground">Tap the button to start</p>
+          </div>
+        </div>
+      )}
+
+      {/* Top overlay - Sign out button */}
+      <div className="absolute top-0 left-0 right-0 p-6 bg-gradient-to-b from-background/80 to-transparent">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-black mb-2">
+            <h1 className="text-2xl font-black text-foreground">
               <span className="bg-gradient-primary bg-clip-text text-transparent">
                 Live Analysis
               </span>
             </h1>
-            <p className="text-muted-foreground">
-              Position yourself in frame and start exercising
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSignOut}
+            className="bg-background/50 backdrop-blur-sm"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      </div>
+
+      {/* AI Feedback Overlay */}
+      {feedback && (
+        <div className="absolute top-24 left-6 right-6 md:left-auto md:right-6 md:w-96 p-6 bg-background/90 backdrop-blur-md rounded-2xl border border-border shadow-2xl">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="w-5 h-5 text-primary animate-pulse" />
+            <h2 className="text-lg font-bold">AI Feedback</h2>
+          </div>
+          
+          <div className="p-4 bg-gradient-primary rounded-xl mb-4">
+            <p className="text-primary-foreground font-semibold">
+              {feedback}
             </p>
           </div>
-          <Activity className="w-12 h-12 text-primary animate-pulse" />
+          
+          <div className="text-sm text-muted-foreground">
+            <p className="mb-2 font-medium">Tips:</p>
+            <ul className="space-y-1 text-xs">
+              <li>• Keep movements slow and controlled</li>
+              <li>• Ensure good lighting</li>
+              <li>• Position yourself fully in frame</li>
+            </ul>
+          </div>
         </div>
+      )}
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Camera Feed */}
-          <div className="lg:col-span-2">
-            <Card className="p-6 bg-card border-border">
-              <div className="aspect-video bg-muted rounded-lg overflow-hidden mb-4 relative">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
-                {!isAnalyzing && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-                    <div className="text-center">
-                      <Camera className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-lg text-muted-foreground">
-                        Camera not active
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {isLoading && (
-                  <div className="absolute top-4 right-4 bg-primary px-3 py-1 rounded-full">
-                    <span className="text-sm font-bold text-primary-foreground">
-                      Analyzing...
-                    </span>
-                  </div>
-                )}
-              </div>
+      {/* Analyzing indicator */}
+      {isLoading && (
+        <div className="absolute top-24 right-6 bg-primary px-4 py-2 rounded-full shadow-glow">
+          <span className="text-sm font-bold text-primary-foreground">
+            Analyzing...
+          </span>
+        </div>
+      )}
 
-              <div className="flex gap-3">
-                {!isAnalyzing ? (
-                  <Button
-                    variant="hero"
-                    className="flex-1"
-                    size="lg"
-                    onClick={startCamera}
-                  >
-                    <Camera className="mr-2" />
-                    Start Camera
-                  </Button>
-                ) : (
-                  <Button
-                    variant="destructive"
-                    className="flex-1"
-                    size="lg"
-                    onClick={stopCamera}
-                  >
-                    <StopCircle className="mr-2" />
-                    Stop Camera
-                  </Button>
-                )}
-              </div>
-            </Card>
-          </div>
-
-          {/* Feedback Panel */}
-          <div className="lg:col-span-1">
-            <Card className="p-6 bg-card border-border h-full">
-              <h2 className="text-2xl font-bold mb-4">AI Feedback</h2>
-              
-              {!feedback && !isAnalyzing && (
-                <div className="text-center py-12">
-                  <Activity className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    Start the camera to receive real-time form analysis
-                  </p>
-                </div>
-              )}
-
-              {isAnalyzing && !feedback && (
-                <div className="text-center py-12">
-                  <Activity className="w-12 h-12 text-primary mx-auto mb-4 animate-pulse" />
-                  <p className="text-muted-foreground">
-                    Waiting for analysis...
-                  </p>
-                </div>
-              )}
-
-              {feedback && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-gradient-primary rounded-lg">
-                    <p className="text-primary-foreground font-semibold">
-                      {feedback}
-                    </p>
-                  </div>
-                  
-                  <div className="text-sm text-muted-foreground">
-                    <p className="mb-2">Tips:</p>
-                    <ul className="list-disc list-inside space-y-1">
-                      <li>Keep your movements slow and controlled</li>
-                      <li>Ensure good lighting for best results</li>
-                      <li>Position yourself fully in frame</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </Card>
-          </div>
+      {/* Bottom controls */}
+      <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background/80 to-transparent">
+        <div className="max-w-md mx-auto">
+          {!isAnalyzing ? (
+            <Button
+              variant="hero"
+              className="w-full shadow-glow"
+              size="lg"
+              onClick={startCamera}
+            >
+              <Camera className="mr-2 w-5 h-5" />
+              Start Camera
+            </Button>
+          ) : (
+            <Button
+              variant="destructive"
+              className="w-full"
+              size="lg"
+              onClick={stopCamera}
+            >
+              <StopCircle className="mr-2 w-5 h-5" />
+              Stop Camera
+            </Button>
+          )}
         </div>
       </div>
     </div>

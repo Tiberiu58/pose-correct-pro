@@ -43,7 +43,7 @@ const Landing = () => {
             <Button 
               variant="hero" 
               size="lg"
-              onClick={() => navigate("/intro")}
+              onClick={() => navigate("/auth")}
               className="w-full sm:w-auto min-w-[200px]"
             >
               Get Started
