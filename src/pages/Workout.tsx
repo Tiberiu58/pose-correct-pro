@@ -1,16 +1,22 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Camera, StopCircle, Activity, LogOut } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Camera, StopCircle, Activity, LogOut, User } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 const Workout = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [feedback, setFeedback] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -125,7 +131,7 @@ const Workout = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-background">
+    <div className="fixed inset-0 bg-background overflow-y-auto">
       {/* Full-screen camera feed */}
       <video
         ref={videoRef}
@@ -136,8 +142,8 @@ const Workout = () => {
       />
       
       {!isAnalyzing && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm">
-          <div className="text-center">
+        <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm overflow-y-auto">
+          <div className="text-center p-6">
             <Camera className="w-24 h-24 text-muted-foreground mx-auto mb-6" />
             <p className="text-2xl text-foreground mb-2">Camera not active</p>
             <p className="text-muted-foreground">Tap the button to start</p>
@@ -145,8 +151,8 @@ const Workout = () => {
         </div>
       )}
 
-      {/* Top overlay - Sign out button */}
-      <div className="absolute top-0 left-0 right-0 p-6 bg-gradient-to-b from-background/80 to-transparent">
+      {/* Top overlay - User menu */}
+      <div className="absolute top-0 left-0 right-0 p-6 bg-gradient-to-b from-background/80 to-transparent z-50">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black text-foreground">
@@ -155,15 +161,23 @@ const Workout = () => {
               </span>
             </h1>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSignOut}
-            className="bg-background/50 backdrop-blur-sm"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="bg-background/50 backdrop-blur-sm rounded-full w-10 h-10"
+              >
+                <User className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

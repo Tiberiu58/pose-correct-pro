@@ -112,10 +112,10 @@ const Auth = () => {
           </p>
         </div>
 
-        <Card className="p-8 bg-card border-border">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+        <Card className="p-10 bg-card border-border">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="space-y-3">
+              <Label htmlFor="email" className="text-base">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -124,11 +124,12 @@ const Auth = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
                 required
+                className="h-12 text-base"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-3">
+              <Label htmlFor="password" className="text-base">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -138,6 +139,7 @@ const Auth = () => {
                 disabled={loading}
                 required
                 minLength={6}
+                className="h-12 text-base"
               />
             </div>
 
@@ -152,10 +154,10 @@ const Auth = () => {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-base text-muted-foreground hover:text-foreground transition-colors"
               disabled={loading}
             >
               {isLogin
