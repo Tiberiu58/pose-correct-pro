@@ -5,7 +5,7 @@ import { getBackend } from '@/pose/getBackend';
 import { KeypointSmoother } from '@/pose/smoothing';
 import { RepCounter } from '@/pose/useRepCounter';
 import { Button } from '@/components/ui/button';
-import { Camera, CameraOff } from 'lucide-react';
+import { Camera, CameraOff, Settings } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
 
 type KPName =
   | 'nose' | 'left_eye' | 'right_eye' | 'left_ear' | 'right_ear'
@@ -108,6 +110,8 @@ export const PoseCamera = ({
   const [currentAngle, setCurrentAngle] = useState(0);
   const [exerciseName, setExerciseName] = useState('Squat');
   const [selectedExercise, setSelectedExercise] = useState<'squat' | 'pushup'>('squat');
+  const [calibrationMode, setCalibrationMode] = useState(false);
+  const [smoothingValue, setSmoothingValue] = useState(0.3);
 
   const TARGET_FPS = 15;
   const FRAME_INTERVAL = 1000 / TARGET_FPS;
@@ -122,6 +126,12 @@ export const PoseCamera = ({
     setExerciseName(repCounterRef.current.getExerciseName());
     setRepCount(0);
     setCurrentAngle(0);
+  };
+
+  const handleSmoothingChange = (value: number[]) => {
+    const newValue = value[0];
+    setSmoothingValue(newValue);
+    smootherRef.current.setAlpha(newValue);
   };
 
   async function startCamera() {
@@ -396,7 +406,7 @@ export const PoseCamera = ({
           style={{ mixBlendMode: 'screen' }}
         />
         {/* Rep Counter HUD */}
-        {isActive && (
+        {isActive && !calibrationMode && (
           <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-sm text-white px-4 py-3 rounded-lg space-y-1 min-w-[140px]">
             <div className="text-xs text-gray-400 font-medium">Exercise</div>
             <div className="text-sm font-semibold">{exerciseName}</div>
@@ -404,6 +414,44 @@ export const PoseCamera = ({
             <div className="text-3xl font-bold text-green-500">{repCount}</div>
             <div className="text-xs text-gray-400 font-medium mt-2">Angle</div>
             <div className="text-sm font-mono">{currentAngle}°</div>
+          </div>
+        )}
+
+        {/* Calibration HUD */}
+        {isActive && calibrationMode && (
+          <div className="absolute top-4 left-4 bg-black/90 backdrop-blur-sm text-white px-5 py-4 rounded-lg space-y-3 min-w-[280px]">
+            <div className="flex items-center gap-2 mb-2">
+              <Settings className="w-4 h-4 text-green-500" />
+              <div className="text-sm font-semibold">Calibration Mode</div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label className="text-xs text-gray-400">Smoothing Strength</Label>
+                <span className="text-xs text-green-500 font-mono">{smoothingValue.toFixed(2)}</span>
+              </div>
+              <Slider
+                value={[smoothingValue]}
+                onValueChange={handleSmoothingChange}
+                min={0.1}
+                max={0.9}
+                step={0.05}
+                className="w-full"
+              />
+              <div className="flex justify-between text-[10px] text-gray-500">
+                <span>More Responsive</span>
+                <span>More Stable</span>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-gray-700">
+              <div className="text-xs text-gray-400">Tips:</div>
+              <ul className="text-[10px] text-gray-500 mt-1 space-y-1">
+                <li>• Lower values = faster tracking</li>
+                <li>• Higher values = smoother motion</li>
+                <li>• Adjust until keypoints feel stable</li>
+              </ul>
+            </div>
           </div>
         )}
 
@@ -419,26 +467,40 @@ export const PoseCamera = ({
         )}
       </div>
 
-      <div className="flex items-center gap-2">
-        <Select value={selectedExercise} onValueChange={handleExerciseChange} disabled={isActive}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Exercise" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="squat">Squat</SelectItem>
-            <SelectItem value="pushup">Push-up</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <Button
-          onClick={isActive ? stopCamera : startCamera}
-          disabled={isLoading}
-          variant={isActive ? 'destructive' : 'default'}
-          className="flex-1"
-        >
-          {isActive ? <CameraOff className="mr-2" /> : <Camera className="mr-2" />}
-          {isLoading ? 'Loading...' : isActive ? 'Stop Camera' : 'Start Camera'}
-        </Button>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <Select value={selectedExercise} onValueChange={handleExerciseChange} disabled={isActive}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Exercise" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="squat">Squat</SelectItem>
+              <SelectItem value="pushup">Push-up</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Button
+            onClick={isActive ? stopCamera : startCamera}
+            disabled={isLoading}
+            variant={isActive ? 'destructive' : 'default'}
+            className="flex-1"
+          >
+            {isActive ? <CameraOff className="mr-2" /> : <Camera className="mr-2" />}
+            {isLoading ? 'Loading...' : isActive ? 'Stop Camera' : 'Start Camera'}
+          </Button>
+        </div>
+
+        {isActive && (
+          <Button
+            onClick={() => setCalibrationMode(!calibrationMode)}
+            variant="outline"
+            size="sm"
+            className="w-full"
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            {calibrationMode ? 'Exit Calibration' : 'Calibrate Smoothing'}
+          </Button>
+        )}
       </div>
     </div>
   );
