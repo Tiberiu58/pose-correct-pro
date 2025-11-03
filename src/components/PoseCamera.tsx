@@ -338,12 +338,10 @@ export const PoseCamera = ({
     <div className={`flex flex-col gap-4 ${className}`}>
       <div
         ref={containerRef}
-        className="relative bg-black rounded-lg overflow-hidden mx-auto"
+        className="relative bg-black rounded-lg overflow-hidden w-full mx-auto"
         style={{ 
-          width: `min(100%, ${100 / videoAspectRatio}vh)`,
-          height: `min(${100 * videoAspectRatio}vw, 100vh)`,
-          transform: 'rotate(90deg)',
-          transformOrigin: 'center center'
+          aspectRatio: `${1 / videoAspectRatio}`,
+          maxHeight: '70vh'
         }}
       >
         {/* IMPORTANT: no CSS flip on the video; we mirror only in canvas math */}
