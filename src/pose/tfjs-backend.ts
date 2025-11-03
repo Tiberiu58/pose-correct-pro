@@ -14,7 +14,7 @@ export class TfjsPoseBackend implements PoseBackend {
   private detector: poseDetection.PoseDetector | null = null;
   private options: TfjsBackendOptions;
   private lastEstimateTime = 0;
-  private readonly TARGET_FPS = 15;
+  private readonly TARGET_FPS = 20;
   private readonly FRAME_INTERVAL = 1000 / this.TARGET_FPS;
 
   constructor(options: TfjsBackendOptions = {}) {

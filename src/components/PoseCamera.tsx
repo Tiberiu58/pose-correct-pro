@@ -94,7 +94,7 @@ export const PoseCamera = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const backendRef = useRef<PoseBackend | null>(null);
-  const smootherRef = useRef<KeypointSmoother>(new KeypointSmoother(0.3)); // More aggressive smoothing
+  const smootherRef = useRef<KeypointSmoother>(new KeypointSmoother(0.4)); // More aggressive smoothing
   const repCounterRef = useRef<RepCounter>(new RepCounter('squat'));
   const detectionIntervalRef = useRef<number | null>(null);
   const lastPoseTimeRef = useRef<number>(Date.now());
@@ -111,9 +111,9 @@ export const PoseCamera = ({
   const [exerciseName, setExerciseName] = useState('Squat');
   const [selectedExercise, setSelectedExercise] = useState<'squat' | 'pushup'>('squat');
   const [calibrationMode, setCalibrationMode] = useState(false);
-  const [smoothingValue, setSmoothingValue] = useState(0.3);
+  const [smoothingValue, setSmoothingValue] = useState(0.4);
 
-  const TARGET_FPS = 15;
+  const TARGET_FPS = 20;
   const FRAME_INTERVAL = 1000 / TARGET_FPS;
   const NO_POSE_TIMEOUT = 2000;
 
