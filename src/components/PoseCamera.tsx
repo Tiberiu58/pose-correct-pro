@@ -94,6 +94,7 @@ export const PoseCamera = ({
   const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [fps, setFps] = useState(0);
   const [noPoseWarning, setNoPoseWarning] = useState(false);
+  const [videoAspectRatio, setVideoAspectRatio] = useState<string>('4 / 3');
 
   const TARGET_FPS = 15;
   const FRAME_INTERVAL = 1000 / TARGET_FPS;
@@ -137,9 +138,13 @@ export const PoseCamera = ({
         });
         await videoRef.current.play();
 
-        // Set intrinsic video size (not strictly required for our mapping, but correct)
-        videoRef.current.width = videoRef.current.videoWidth;
-        videoRef.current.height = videoRef.current.videoHeight;
+        // Detect actual camera aspect ratio and update container
+        const actualWidth = videoRef.current.videoWidth;
+        const actualHeight = videoRef.current.videoHeight;
+        setVideoAspectRatio(`${actualWidth} / ${actualHeight}`);
+
+        videoRef.current.width = actualWidth;
+        videoRef.current.height = actualHeight;
       }
 
       const backend = getBackend(modelType);
@@ -334,7 +339,7 @@ export const PoseCamera = ({
       <div
         ref={containerRef}
         className="relative bg-black rounded-lg overflow-hidden w-full"
-        style={{ minHeight: '60vh', height: '100%' }}
+        style={{ aspectRatio: videoAspectRatio }}
       >
         {/* IMPORTANT: no CSS flip on the video; we mirror only in canvas math */}
        <video
