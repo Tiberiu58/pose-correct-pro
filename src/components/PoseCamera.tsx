@@ -92,7 +92,7 @@ export const PoseCamera = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const backendRef = useRef<PoseBackend | null>(null);
-  const smootherRef = useRef<KeypointSmoother>(new KeypointSmoother(smoothing));
+  const smootherRef = useRef<KeypointSmoother>(new KeypointSmoother(0.3)); // More aggressive smoothing
   const repCounterRef = useRef<RepCounter>(new RepCounter('squat'));
   const detectionIntervalRef = useRef<number | null>(null);
   const lastPoseTimeRef = useRef<number>(Date.now());
@@ -317,23 +317,26 @@ export const PoseCamera = ({
         const p1 = map.get(a);
         const p2 = map.get(b);
         if (!p1 || !p2) return;
-        if ((p1.score ?? 0) < 0.3 || (p2.score ?? 0) < 0.3) return;
+        if ((p1.score ?? 0) < 0.35 || (p2.score ?? 0) < 0.35) return; // Higher threshold
         if (Number.isNaN(p1.x) || Number.isNaN(p1.y) || Number.isNaN(p2.x) || Number.isNaN(p2.y)) return;
 
+        // Smooth rendering with sub-pixel precision
         ctx.beginPath();
-        ctx.moveTo(Math.round(p1.x + KEYPOINT_OFFSET_X), Math.round(p1.y + KEYPOINT_OFFSET_Y));
-        ctx.lineTo(Math.round(p2.x + KEYPOINT_OFFSET_X), Math.round(p2.y + KEYPOINT_OFFSET_Y));
+        ctx.moveTo(p1.x + KEYPOINT_OFFSET_X, p1.y + KEYPOINT_OFFSET_Y);
+        ctx.lineTo(p2.x + KEYPOINT_OFFSET_X, p2.y + KEYPOINT_OFFSET_Y);
         ctx.stroke();
       });
 
       // joints
       keypoints.forEach((kp) => {
-        if ((kp.score ?? 0) < 0.3) return;
+        if ((kp.score ?? 0) < 0.35) return; // Higher threshold
         if (Number.isNaN(kp.x) || Number.isNaN(kp.y)) return;
 
-        ctx.fillStyle = 'rgba(34, 197, 94, 1)';
+        // Variable opacity based on confidence
+        const opacity = Math.min(1, (kp.score ?? 0) / 0.5);
+        ctx.fillStyle = `rgba(34, 197, 94, ${opacity})`;
         ctx.beginPath();
-        ctx.arc(Math.round(kp.x + KEYPOINT_OFFSET_X), Math.round(kp.y + KEYPOINT_OFFSET_Y), 5, 0, 2 * Math.PI);
+        ctx.arc(kp.x + KEYPOINT_OFFSET_X, kp.y + KEYPOINT_OFFSET_Y, 5, 0, 2 * Math.PI);
         ctx.fill();
       });
 
