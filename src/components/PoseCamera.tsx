@@ -329,13 +329,15 @@ export const PoseCamera = ({
         style={{ aspectRatio: '4 / 3' }}
       >
         {/* IMPORTANT: no CSS flip on the video; we mirror only in canvas math */}
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="absolute inset-0 w-full h-full object-contain"
-        />
+       <video
+  ref={videoRef}
+  autoPlay
+  playsInline
+  muted
+  className="absolute inset-0 w-full h-full object-contain"
+  style={{ transform: 'scaleX(-1)' }}   // ✅ imaginea e oglinidită vizual
+/>
+
         <canvas
           ref={canvasRef}
           className="absolute inset-0 pointer-events-none z-10"
