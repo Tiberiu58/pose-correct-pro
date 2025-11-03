@@ -7,21 +7,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Camera, StopCircle, Activity, LogOut, User } from "lucide-react";
+import { Camera, StopCircle, Activity, LogOut, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
+import { usePoseDetection } from "@/hooks/usePoseDetection";
+import { SkeletonOverlay } from "@/components/SkeletonOverlay";
+import { analyzePoseForm } from "@/utils/poseAnalysis";
 
 const Workout = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [feedback, setFeedback] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [feedback, setFeedback] = useState<string[]>([]);
+  const [formScore, setFormScore] = useState<number>(0);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
+  
+  const { poses, isModelLoading } = usePoseDetection(isAnalyzing ? videoRef.current : null);
 
   const startCamera = async () => {
     try {
@@ -34,12 +38,7 @@ const Workout = () => {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         setIsAnalyzing(true);
-        toast.success("Camera activated");
-        
-        // Start analyzing frames every 3 seconds
-        intervalRef.current = setInterval(() => {
-          captureAndAnalyze();
-        }, 3000);
+        toast.success("Camera activated - AI analyzing your form");
       }
     } catch (error) {
       console.error("Camera error:", error);
@@ -52,48 +51,20 @@ const Workout = () => {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
     setIsAnalyzing(false);
-    setFeedback("");
+    setFeedback([]);
+    setFormScore(0);
     toast.info("Camera stopped");
   };
 
-  const captureAndAnalyze = async () => {
-    if (!videoRef.current || isLoading) return;
+  // Analyze poses in real-time
+  useEffect(() => {
+    if (!poses.length || !isAnalyzing) return;
 
-    setIsLoading(true);
-    
-    try {
-      // Capture frame from video
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) return;
-      
-      ctx.drawImage(videoRef.current, 0, 0);
-      const imageData = canvas.toDataURL('image/jpeg', 0.8);
-
-      // Send to AI for analysis
-      const { data, error } = await supabase.functions.invoke('analyze-form', {
-        body: { image: imageData }
-      });
-
-      if (error) throw error;
-
-      if (data?.feedback) {
-        setFeedback(data.feedback);
-      }
-    } catch (error) {
-      console.error("Analysis error:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const analysis = analyzePoseForm(poses[0], 'general');
+    setFeedback(analysis.feedback);
+    setFormScore(analysis.score);
+  }, [poses, isAnalyzing]);
 
   useEffect(() => {
     // Set up auth state listener first
@@ -181,37 +152,63 @@ const Workout = () => {
         </div>
       </div>
 
-      {/* AI Feedback Overlay */}
-      {feedback && (
-        <div className="absolute top-24 left-6 right-6 md:left-auto md:right-6 md:w-96 p-6 bg-background/90 backdrop-blur-md rounded-2xl border border-border shadow-2xl">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="w-5 h-5 text-primary animate-pulse" />
-            <h2 className="text-lg font-bold">AI Feedback</h2>
-          </div>
-          
-          <div className="p-4 bg-gradient-primary rounded-xl mb-4">
-            <p className="text-primary-foreground font-semibold">
-              {feedback}
-            </p>
-          </div>
-          
-          <div className="text-sm text-muted-foreground">
-            <p className="mb-2 font-medium">Tips:</p>
-            <ul className="space-y-1 text-xs">
-              <li>• Keep movements slow and controlled</li>
-              <li>• Ensure good lighting</li>
-              <li>• Position yourself fully in frame</li>
-            </ul>
-          </div>
+      {/* Skeleton Overlay */}
+      {isAnalyzing && videoRef.current && (
+        <SkeletonOverlay poses={poses} videoElement={videoRef.current} />
+      )}
+
+      {/* Model Loading Indicator */}
+      {isModelLoading && (
+        <div className="absolute top-24 right-6 bg-accent/90 backdrop-blur-sm px-4 py-3 rounded-xl shadow-glow flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin text-accent-foreground" />
+          <span className="text-sm font-bold text-accent-foreground">
+            Loading AI Model...
+          </span>
         </div>
       )}
 
-      {/* Analyzing indicator */}
-      {isLoading && (
-        <div className="absolute top-24 right-6 bg-primary px-4 py-2 rounded-full shadow-glow">
-          <span className="text-sm font-bold text-primary-foreground">
-            Analyzing...
-          </span>
+      {/* AI Feedback Overlay */}
+      {feedback.length > 0 && isAnalyzing && (
+        <div className="absolute top-24 left-6 right-6 md:left-auto md:right-6 md:w-96 p-6 bg-background/95 backdrop-blur-md rounded-2xl border-2 border-accent shadow-2xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Activity className="w-5 h-5 text-accent animate-pulse" />
+              <h2 className="text-lg font-bold">Real-Time Analysis</h2>
+            </div>
+            <div className={`text-2xl font-black ${
+              formScore >= 90 ? 'text-accent' : 
+              formScore >= 70 ? 'text-yellow-500' : 
+              'text-destructive'
+            }`}>
+              {formScore}%
+            </div>
+          </div>
+          
+          <div className="space-y-2 mb-4">
+            {feedback.map((item, index) => (
+              <div 
+                key={index}
+                className={`p-3 rounded-xl ${
+                  item.includes('Excellent') || item.includes('Keep it up')
+                    ? 'bg-accent/20 border border-accent'
+                    : 'bg-destructive/20 border border-destructive'
+                }`}
+              >
+                <p className="text-sm font-semibold">
+                  {item}
+                </p>
+              </div>
+            ))}
+          </div>
+          
+          <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+            <p className="font-medium mb-1">💡 Tips:</p>
+            <ul className="space-y-1">
+              <li>• Ensure good lighting</li>
+              <li>• Stay fully in frame</li>
+              <li>• Face the camera directly</li>
+            </ul>
+          </div>
         </div>
       )}
 
