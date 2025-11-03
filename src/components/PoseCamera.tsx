@@ -339,7 +339,11 @@ export const PoseCamera = ({
       <div
         ref={containerRef}
         className="relative bg-black rounded-lg overflow-hidden w-full"
-        style={{ aspectRatio: videoAspectRatio }}
+        style={{ 
+          aspectRatio: videoAspectRatio,
+          transform: 'rotate(90deg)',
+          transformOrigin: 'center center'
+        }}
       >
         {/* IMPORTANT: no CSS flip on the video; we mirror only in canvas math */}
        <video
