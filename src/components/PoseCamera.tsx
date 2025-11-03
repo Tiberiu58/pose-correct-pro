@@ -273,6 +273,8 @@ export const PoseCamera = ({
     videoH: number,
     fpsVal: number
   ) {
+    const KEYPOINT_OFFSET_Y = -25; // Offset pentru a muta keypoints mai sus
+    
     poses.forEach((pose) => {
       const { keypoints } = pose;
       const map = new Map(keypoints.map((kp) => [kp.name, kp]));
@@ -288,8 +290,8 @@ export const PoseCamera = ({
         if (Number.isNaN(p1.x) || Number.isNaN(p1.y) || Number.isNaN(p2.x) || Number.isNaN(p2.y)) return;
 
         ctx.beginPath();
-        ctx.moveTo(Math.round(p1.x), Math.round(p1.y));
-        ctx.lineTo(Math.round(p2.x), Math.round(p2.y));
+        ctx.moveTo(Math.round(p1.x), Math.round(p1.y + KEYPOINT_OFFSET_Y));
+        ctx.lineTo(Math.round(p2.x), Math.round(p2.y + KEYPOINT_OFFSET_Y));
         ctx.stroke();
       });
 
@@ -300,7 +302,7 @@ export const PoseCamera = ({
 
         ctx.fillStyle = 'rgba(34, 197, 94, 1)';
         ctx.beginPath();
-        ctx.arc(Math.round(kp.x), Math.round(kp.y), 5, 0, 2 * Math.PI);
+        ctx.arc(Math.round(kp.x), Math.round(kp.y + KEYPOINT_OFFSET_Y), 5, 0, 2 * Math.PI);
         ctx.fill();
       });
 
