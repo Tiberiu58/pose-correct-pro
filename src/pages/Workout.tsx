@@ -107,11 +107,12 @@ const Workout = () => {
       {/* Main content */}
       <div className="max-w-7xl mx-auto grid lg:grid-cols-3 gap-6">
         {/* Camera and controls */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 h-full">
           <PoseCamera 
             onPoseDetected={handlePoseDetected}
             smoothing={smoothing}
             modelType="lightning"
+            className="h-full"
           />
         </div>
 

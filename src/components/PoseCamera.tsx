@@ -108,11 +108,19 @@ export const PoseCamera = ({
       setError('');
       setNoPoseWarning(false);
 
+      // Detect native aspect ratio (mobile vs desktop)
+      const aspectRatio = window.screen?.height && window.screen?.width 
+        ? window.screen.height / window.screen.width 
+        : 4 / 3; // fallback to 4:3 for desktop
+      
+      const idealWidth = 640;
+      const idealHeight = Math.round(idealWidth * aspectRatio);
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: 'user',           // front cam by default
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          facingMode: 'user',
+          width: { ideal: idealWidth },
+          height: { ideal: idealHeight },
           frameRate: { ideal: 20, max: 30 },
         },
         audio: false,
@@ -183,11 +191,11 @@ export const PoseCamera = ({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // 1) Container (display) size + render rect for object-contain
+      // 1) Container (display) size + render rect for object-cover
       const boxW = box.clientWidth;
       const boxH = box.clientHeight;
       const { renderX, renderY, renderW, renderH } = computeRenderRect(
-        video.videoWidth, video.videoHeight, boxW, boxH, 'contain'
+        video.videoWidth, video.videoHeight, boxW, boxH, 'cover'
       );
 
       // 2) Canvas size to *display* pixels (with DPR)
@@ -325,8 +333,7 @@ export const PoseCamera = ({
     <div className={`flex flex-col gap-4 ${className}`}>
       <div
         ref={containerRef}
-        className="relative bg-black rounded-lg overflow-hidden"
-        style={{ aspectRatio: '4 / 3' }}
+        className="relative bg-black rounded-lg overflow-hidden w-full h-full"
       >
         {/* IMPORTANT: no CSS flip on the video; we mirror only in canvas math */}
        <video
@@ -334,8 +341,8 @@ export const PoseCamera = ({
   autoPlay
   playsInline
   muted
-  className="absolute inset-0 w-full h-full object-contain"
-  style={{ transform: 'scaleX(-1)' }}   // ✅ imaginea e oglinidită vizual
+  className="absolute inset-0 w-full h-full object-cover"
+  style={{ transform: 'scaleX(-1)' }}
 />
 
         <canvas
