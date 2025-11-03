@@ -187,7 +187,7 @@ export const PoseCamera = ({
       const boxW = box.clientWidth;
       const boxH = box.clientHeight;
       const { renderX, renderY, renderW, renderH } = computeRenderRect(
-        video.videoWidth, video.videoHeight, boxW, boxH, 'contain'
+        video.videoWidth, video.videoHeight, boxW, boxH, 'cover'
       );
 
       // 2) Canvas size to *display* pixels (with DPR)
@@ -329,14 +329,13 @@ export const PoseCamera = ({
         style={{ aspectRatio: '4 / 3' }}
       >
         {/* IMPORTANT: no CSS flip on the video; we mirror only in canvas math */}
-       <video
-  ref={videoRef}
-  autoPlay
-  playsInline
-  muted
-  className="absolute inset-0 w-full h-full object-contain"
-  style={{ transform: 'scaleX(-1)' }}   // ✅ imaginea e oglinidită vizual
-/>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="absolute inset-0 w-full h-full object-cover"
+        />
 
         <canvas
           ref={canvasRef}
