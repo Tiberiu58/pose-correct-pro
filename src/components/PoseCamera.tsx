@@ -274,6 +274,7 @@ export const PoseCamera = ({
     fpsVal: number
   ) {
     const KEYPOINT_OFFSET_Y = -55; // Offset pentru a muta keypoints mai sus
+    const KEYPOINT_OFFSET_X = -15; // Offset pentru a muta keypoints la stânga
     
     poses.forEach((pose) => {
       const { keypoints } = pose;
@@ -290,8 +291,8 @@ export const PoseCamera = ({
         if (Number.isNaN(p1.x) || Number.isNaN(p1.y) || Number.isNaN(p2.x) || Number.isNaN(p2.y)) return;
 
         ctx.beginPath();
-        ctx.moveTo(Math.round(p1.x), Math.round(p1.y + KEYPOINT_OFFSET_Y));
-        ctx.lineTo(Math.round(p2.x), Math.round(p2.y + KEYPOINT_OFFSET_Y));
+        ctx.moveTo(Math.round(p1.x + KEYPOINT_OFFSET_X), Math.round(p1.y + KEYPOINT_OFFSET_Y));
+        ctx.lineTo(Math.round(p2.x + KEYPOINT_OFFSET_X), Math.round(p2.y + KEYPOINT_OFFSET_Y));
         ctx.stroke();
       });
 
@@ -302,7 +303,7 @@ export const PoseCamera = ({
 
         ctx.fillStyle = 'rgba(34, 197, 94, 1)';
         ctx.beginPath();
-        ctx.arc(Math.round(kp.x), Math.round(kp.y + KEYPOINT_OFFSET_Y), 5, 0, 2 * Math.PI);
+        ctx.arc(Math.round(kp.x + KEYPOINT_OFFSET_X), Math.round(kp.y + KEYPOINT_OFFSET_Y), 5, 0, 2 * Math.PI);
         ctx.fill();
       });
 
