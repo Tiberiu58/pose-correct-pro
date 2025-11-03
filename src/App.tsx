@@ -8,6 +8,10 @@ import Intro from "./pages/Intro";
 import Subscribe from "./pages/Subscribe";
 import Workout from "./pages/Workout";
 import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
+import Home from "./pages/Home";
+import Progress from "./pages/Progress";
+import Coach from "./pages/Coach";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,7 +27,11 @@ const App = () => (
           <Route path="/intro" element={<Intro />} />
           <Route path="/subscribe" element={<Subscribe />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/home" element={<Home />} />
           <Route path="/workout" element={<Workout />} />
+          <Route path="/progress" element={<Progress />} />
+          <Route path="/coach" element={<Coach />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
