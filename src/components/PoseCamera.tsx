@@ -6,6 +6,13 @@ import { KeypointSmoother } from '@/pose/smoothing';
 import { RepCounter } from '@/pose/useRepCounter';
 import { Button } from '@/components/ui/button';
 import { Camera, CameraOff } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type KPName =
   | 'nose' | 'left_eye' | 'right_eye' | 'left_ear' | 'right_ear'
@@ -100,6 +107,7 @@ export const PoseCamera = ({
   const [repCount, setRepCount] = useState(0);
   const [currentAngle, setCurrentAngle] = useState(0);
   const [exerciseName, setExerciseName] = useState('Squat');
+  const [selectedExercise, setSelectedExercise] = useState<'squat' | 'pushup'>('squat');
 
   const TARGET_FPS = 15;
   const FRAME_INTERVAL = 1000 / TARGET_FPS;
@@ -107,6 +115,14 @@ export const PoseCamera = ({
 
   useEffect(() => () => stopCamera(), []);
   useEffect(() => { smootherRef.current.setAlpha(smoothing); }, [smoothing]);
+  
+  const handleExerciseChange = (exercise: 'squat' | 'pushup') => {
+    setSelectedExercise(exercise);
+    repCounterRef.current.setExercise(exercise);
+    setExerciseName(repCounterRef.current.getExerciseName());
+    setRepCount(0);
+    setCurrentAngle(0);
+  };
 
   async function startCamera() {
     try {
@@ -401,6 +417,16 @@ export const PoseCamera = ({
       </div>
 
       <div className="flex items-center gap-2">
+        <Select value={selectedExercise} onValueChange={handleExerciseChange} disabled={isActive}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Exercise" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="squat">Squat</SelectItem>
+            <SelectItem value="pushup">Push-up</SelectItem>
+          </SelectContent>
+        </Select>
+        
         <Button
           onClick={isActive ? stopCamera : startCamera}
           disabled={isLoading}

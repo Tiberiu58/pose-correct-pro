@@ -69,6 +69,24 @@ export class RepCounter {
     return (leftKneeAngle + rightKneeAngle) / 2;
   }
 
+  private computePushupAngle(pose: Pose): number | null {
+    const leftShoulder = this.getKeypoint(pose, 'left_shoulder');
+    const leftElbow = this.getKeypoint(pose, 'left_elbow');
+    const leftWrist = this.getKeypoint(pose, 'left_wrist');
+    const rightShoulder = this.getKeypoint(pose, 'right_shoulder');
+    const rightElbow = this.getKeypoint(pose, 'right_elbow');
+    const rightWrist = this.getKeypoint(pose, 'right_wrist');
+
+    if (!leftShoulder || !leftElbow || !leftWrist || !rightShoulder || !rightElbow || !rightWrist) {
+      return null;
+    }
+
+    const leftElbowAngle = angleBetween(leftShoulder, leftElbow, leftWrist);
+    const rightElbowAngle = angleBetween(rightShoulder, rightElbow, rightWrist);
+    
+    return (leftElbowAngle + rightElbowAngle) / 2;
+  }
+
   update(poses: Pose[]): RepState {
     if (poses.length === 0) {
       return this.state;
@@ -79,6 +97,8 @@ export class RepCounter {
 
     if (this.exerciseType === 'squat') {
       angle = this.computeSquatAngle(pose);
+    } else if (this.exerciseType === 'pushup') {
+      angle = this.computePushupAngle(pose);
     }
 
     if (angle === null) {
@@ -93,6 +113,21 @@ export class RepCounter {
 
     // Squat rep detection: down < 90°, up > 160°
     if (this.exerciseType === 'squat') {
+      if (smoothedAngle < 90 && this.state.state !== 'down') {
+        this.state.state = 'down';
+      } else if (
+        smoothedAngle > 160 &&
+        this.state.state === 'down' &&
+        timeSinceLastRep > this.DEBOUNCE_MS
+      ) {
+        this.state.count++;
+        this.state.state = 'up';
+        this.state.lastRepTime = now;
+      }
+    }
+    
+    // Pushup rep detection: down < 90°, up > 160°
+    if (this.exerciseType === 'pushup') {
       if (smoothedAngle < 90 && this.state.state !== 'down') {
         this.state.state = 'down';
       } else if (
