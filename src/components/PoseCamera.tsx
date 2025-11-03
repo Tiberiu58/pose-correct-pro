@@ -341,7 +341,7 @@ export const PoseCamera = ({
         className="relative bg-black rounded-lg overflow-hidden w-full"
         style={{ 
           aspectRatio: videoAspectRatio,
-          transform: 'rotate(90deg)',
+          transform: 'rotate(180deg)',
           transformOrigin: 'center center'
         }}
       >
@@ -352,7 +352,7 @@ export const PoseCamera = ({
   playsInline
   muted
   className="absolute inset-0 w-full h-full object-cover"
-  style={{ transform: 'scaleX(-1) rotate(-90deg)' }}
+  style={{ transform: 'scaleX(-1) rotate(-180deg)' }}
 />
 
         <canvas
@@ -360,7 +360,7 @@ export const PoseCamera = ({
           className="absolute inset-0 pointer-events-none z-10"
           style={{ 
             mixBlendMode: 'screen',
-            transform: 'rotate(-90deg)'
+            transform: 'rotate(-180deg)'
           }}
         />
         {noPoseWarning && (
