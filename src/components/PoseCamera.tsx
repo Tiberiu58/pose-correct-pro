@@ -274,7 +274,7 @@ export const PoseCamera = ({
     fpsVal: number
   ) {
     const KEYPOINT_OFFSET_Y = -55; // Offset pentru a muta keypoints mai sus
-    const KEYPOINT_OFFSET_X = -15; // Offset pentru a muta keypoints la stânga
+    const KEYPOINT_OFFSET_X = 25; // Offset pentru a muta keypoints la dreapta
     
     poses.forEach((pose) => {
       const { keypoints } = pose;
