@@ -20,6 +20,8 @@ const Coach = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const MAX_MESSAGE_LENGTH = 1000;
 
   useEffect(() => {
     loadMessages();
@@ -54,6 +56,18 @@ const Coach = () => {
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
+    
+    // Validate message length
+    if (userMessage.length > MAX_MESSAGE_LENGTH) {
+      toast.error(`Message too long (max ${MAX_MESSAGE_LENGTH} characters)`);
+      return;
+    }
+    
+    if (userMessage.length < 3) {
+      toast.error("Message too short (minimum 3 characters)");
+      return;
+    }
+    
     setInput("");
     setIsLoading(true);
 

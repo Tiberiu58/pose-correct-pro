@@ -6,6 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const MAX_MESSAGE_LENGTH = 1000;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -13,6 +15,39 @@ serve(async (req) => {
 
   try {
     const { message } = await req.json();
+    
+    // Validate message input
+    if (!message || typeof message !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Invalid message format' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
+    const trimmedMessage = message.trim();
+    
+    if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
+    
+    if (trimmedMessage.length < 3) {
+      return new Response(
+        JSON.stringify({ error: 'Message too short (minimum 3 characters)' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
+    }
     const authHeader = req.headers.get("Authorization")!;
     
     const supabaseClient = createClient(
@@ -77,7 +112,7 @@ Be supportive, knowledgeable, and adapt to their fitness level.`;
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: message },
+          { role: "user", content: trimmedMessage },
         ],
       }),
     });
