@@ -87,25 +87,20 @@ export const PoseCamera = ({
         });
         await videoRef.current.play();
 
-        // Set canvas to match video intrinsic size with DPI scaling
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        if (canvas && video) {
-          const dpr = window.devicePixelRatio || 1;
-          
-          // Set intrinsic sizes
-          video.width = video.videoWidth;
-          video.height = video.videoHeight;
-          canvas.width = video.videoWidth * dpr;
-          canvas.height = video.videoHeight * dpr;
-          canvas.style.width = `${video.videoWidth}px`;
-          canvas.style.height = `${video.videoHeight}px`;
-
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          }
-        }
+      // Set canvas to match video intrinsic size with DPI scaling
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (canvas && video) {
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Set intrinsic sizes - one true coordinate space
+        video.width = video.videoWidth;
+        video.height = video.videoHeight;
+        canvas.width = video.videoWidth * dpr;
+        canvas.height = video.videoHeight * dpr;
+        canvas.style.width = `${video.videoWidth}px`;
+        canvas.style.height = `${video.videoHeight}px`;
+      }
       }
 
       // Initialize pose backend
@@ -175,7 +170,7 @@ export const PoseCamera = ({
         // Estimate poses with tf.tidy for memory management
         let poses = await backendRef.current.estimate(video);
 
-        // Apply smoothing
+        // Apply smoothing first (in model coordinate space)
         if (poses.length > 0) {
           poses = smootherRef.current.smooth(poses);
           lastPoseTimeRef.current = Date.now();
@@ -187,21 +182,19 @@ export const PoseCamera = ({
           }
         }
 
-        // Auto-flip keypoints for front camera
-        if (isFrontCamera && poses.length > 0) {
-          poses = poses.map(pose => ({
-            ...pose,
-            keypoints: pose.keypoints.map(kp => ({
-              ...kp,
-              x: video.videoWidth - kp.x,
-            })),
-          }));
+        // Reset and clear canvas with proper DPR handling
+        const dpr = window.devicePixelRatio || 1;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        // Handle mirroring in canvas context for front camera
+        if (isFrontCamera) {
+          ctx.translate(video.videoWidth, 0);
+          ctx.scale(-1, 1);
         }
 
-        // Clear canvas
-        ctx.clearRect(0, 0, video.videoWidth, video.videoHeight);
-
-        // Draw skeleton
+        // Draw skeleton (coordinates are now in the correct space)
         drawSkeleton(ctx, poses, video.videoWidth, video.videoHeight);
 
         // Callback with detected poses
@@ -251,8 +244,8 @@ export const PoseCamera = ({
           !isNaN(kp2.x) && !isNaN(kp2.y)
         ) {
           ctx.beginPath();
-          ctx.moveTo(kp1.x, kp1.y);
-          ctx.lineTo(kp2.x, kp2.y);
+          ctx.moveTo(Math.round(kp1.x), Math.round(kp1.y));
+          ctx.lineTo(Math.round(kp2.x), Math.round(kp2.y));
           ctx.stroke();
         }
       });
@@ -265,7 +258,7 @@ export const PoseCamera = ({
         ) {
           ctx.fillStyle = 'rgba(34, 197, 94, 1)';
           ctx.beginPath();
-          ctx.arc(kp.x, kp.y, 5, 0, 2 * Math.PI);
+          ctx.arc(Math.round(kp.x), Math.round(kp.y), 5, 0, 2 * Math.PI);
           ctx.fill();
         }
       });
@@ -308,9 +301,6 @@ export const PoseCamera = ({
           playsInline
           muted
           className="w-full h-full object-contain"
-          style={{
-            transform: isFrontCamera ? 'scaleX(-1)' : 'none',
-          }}
         />
         <canvas
           ref={canvasRef}
