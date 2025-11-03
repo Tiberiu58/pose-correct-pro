@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@tensorflow/tfjs-backend-webgpu": path.resolve(__dirname, "./src/shims/empty.ts"),
     },
   },
 }));
