@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PoseBackend, Pose, ModelType } from '@/pose/PoseBackend';
 import { getBackend } from '@/pose/getBackend';
 import { KeypointSmoother } from '@/pose/smoothing';
+import { RepCounter } from '@/pose/useRepCounter';
 import { Button } from '@/components/ui/button';
 import { Camera, CameraOff } from 'lucide-react';
 
@@ -85,6 +86,7 @@ export const PoseCamera = ({
   const streamRef = useRef<MediaStream | null>(null);
   const backendRef = useRef<PoseBackend | null>(null);
   const smootherRef = useRef<KeypointSmoother>(new KeypointSmoother(smoothing));
+  const repCounterRef = useRef<RepCounter>(new RepCounter('squat'));
   const detectionIntervalRef = useRef<number | null>(null);
   const lastPoseTimeRef = useRef<number>(Date.now());
 
@@ -95,6 +97,9 @@ export const PoseCamera = ({
   const [fps, setFps] = useState(0);
   const [noPoseWarning, setNoPoseWarning] = useState(false);
   const [videoAspectRatio, setVideoAspectRatio] = useState<number>(4/3);
+  const [repCount, setRepCount] = useState(0);
+  const [currentAngle, setCurrentAngle] = useState(0);
+  const [exerciseName, setExerciseName] = useState('Squat');
 
   const TARGET_FPS = 15;
   const FRAME_INTERVAL = 1000 / TARGET_FPS;
@@ -176,9 +181,12 @@ export const PoseCamera = ({
       backendRef.current = null;
     }
     smootherRef.current.reset();
+    repCounterRef.current.reset();
     setIsActive(false);
     setFps(0);
     setNoPoseWarning(false);
+    setRepCount(0);
+    setCurrentAngle(0);
   }
 
   function startDetectionLoop() {
@@ -220,6 +228,12 @@ export const PoseCamera = ({
         // 4) Smoothing in model space (OK)
         if (poses.length > 0) {
           poses = smootherRef.current.smooth(poses);
+          
+          // 4.5) Update rep counter
+          const repState = repCounterRef.current.update(poses);
+          setRepCount(repState.count);
+          setCurrentAngle(repState.angle);
+          
           lastPoseTimeRef.current = Date.now();
           if (noPoseWarning) setNoPoseWarning(false);
         } else if (Date.now() - lastPoseTimeRef.current > NO_POSE_TIMEOUT) {
@@ -362,6 +376,18 @@ export const PoseCamera = ({
           className="absolute inset-0 pointer-events-none z-10"
           style={{ mixBlendMode: 'screen' }}
         />
+        {/* Rep Counter HUD */}
+        {isActive && (
+          <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-sm text-white px-4 py-3 rounded-lg space-y-1 min-w-[140px]">
+            <div className="text-xs text-gray-400 font-medium">Exercise</div>
+            <div className="text-sm font-semibold">{exerciseName}</div>
+            <div className="text-xs text-gray-400 font-medium mt-2">Reps</div>
+            <div className="text-3xl font-bold text-green-500">{repCount}</div>
+            <div className="text-xs text-gray-400 font-medium mt-2">Angle</div>
+            <div className="text-sm font-mono">{currentAngle}°</div>
+          </div>
+        )}
+
         {noPoseWarning && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-yellow-500/90 text-black px-4 py-2 rounded-lg text-sm font-medium">
             Reacquiring pose...
