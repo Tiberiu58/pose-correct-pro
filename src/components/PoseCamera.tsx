@@ -352,13 +352,16 @@ export const PoseCamera = ({
   playsInline
   muted
   className="absolute inset-0 w-full h-full object-cover"
-  style={{ transform: 'scaleX(-1)' }}
+  style={{ transform: 'scaleX(-1) rotate(-90deg)' }}
 />
 
         <canvas
           ref={canvasRef}
           className="absolute inset-0 pointer-events-none z-10"
-          style={{ mixBlendMode: 'screen' }}
+          style={{ 
+            mixBlendMode: 'screen',
+            transform: 'rotate(-90deg)'
+          }}
         />
         {noPoseWarning && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-yellow-500/90 text-black px-4 py-2 rounded-lg text-sm font-medium">
