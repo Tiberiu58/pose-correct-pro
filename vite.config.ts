@@ -13,7 +13,15 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@tensorflow/tfjs-backend-webgpu": path.resolve(__dirname, "./src/shims/empty.ts"),
     },
+  },
+  optimizeDeps: {
+    include: [
+      "@tensorflow-models/pose-detection",
+      "@tensorflow/tfjs-core",
+      "@tensorflow/tfjs-converter",
+      "@tensorflow/tfjs-backend-webgl",
+      "@tensorflow/tfjs-backend-webgpu"
+    ],
   },
 }));

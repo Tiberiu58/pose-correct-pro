@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import * as poseDetection from '@tensorflow-models/pose-detection';
-import * as tf from '@tensorflow/tfjs';
+import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-webgl';
+import { initTf } from '@/lib/tf-init';
 
 export interface Keypoint {
   x: number;
@@ -28,8 +29,7 @@ export const usePoseDetection = (videoElement: HTMLVideoElement | null) => {
       try {
         setIsModelLoading(true);
         // Force TFJS to use WebGL backend only
-        await tf.setBackend('webgl');
-        await tf.ready();
+        await initTf();
         // Create detector with MoveNet Lightning (lightweight)
         const detector = await poseDetection.createDetector(
           poseDetection.SupportedModels.MoveNet,
