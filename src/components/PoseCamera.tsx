@@ -333,7 +333,8 @@ export const PoseCamera = ({
     <div className={`flex flex-col gap-4 ${className}`}>
       <div
         ref={containerRef}
-        className="relative bg-black rounded-lg overflow-hidden w-full h-full"
+        className="relative bg-black rounded-lg overflow-hidden w-full"
+        style={{ minHeight: '60vh', height: '100%' }}
       >
         {/* IMPORTANT: no CSS flip on the video; we mirror only in canvas math */}
        <video
