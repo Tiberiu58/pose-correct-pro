@@ -20,10 +20,18 @@ const Workout = () => {
   const [formScore, setFormScore] = useState<number>(0);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [smoothing] = useState(() => {
+    const saved = localStorage.getItem('pose-smoothing');
+    return saved ? parseFloat(saved) : 0.6;
+  });
   const navigate = useNavigate();
 
   const handlePoseDetected = (poses: Pose[]) => {
-    if (poses.length === 0) return;
+    if (poses.length === 0) {
+      setFeedback(["Move into frame to begin analysis"]);
+      setFormScore(0);
+      return;
+    }
     
     const analysis = analyzePoseForm(poses[0], 'general');
     setFeedback(analysis.feedback);
@@ -100,7 +108,11 @@ const Workout = () => {
       <div className="max-w-7xl mx-auto grid lg:grid-cols-3 gap-6">
         {/* Camera and controls */}
         <div className="lg:col-span-2">
-          <PoseCamera onPoseDetected={handlePoseDetected} />
+          <PoseCamera 
+            onPoseDetected={handlePoseDetected}
+            smoothing={smoothing}
+            modelType="lightning"
+          />
         </div>
 
         {/* AI Feedback panel */}

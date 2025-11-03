@@ -3,10 +3,6 @@ import { PoseBackend, Pose, ModelType } from '@/pose/PoseBackend';
 import { getBackend } from '@/pose/getBackend';
 import { KeypointSmoother } from '@/pose/smoothing';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
 import { Camera, CameraOff } from 'lucide-react';
 
 const SKELETON_CONNECTIONS = [
@@ -27,24 +23,31 @@ const SKELETON_CONNECTIONS = [
 interface PoseCameraProps {
   onPoseDetected?: (poses: Pose[]) => void;
   className?: string;
+  smoothing?: number;
+  modelType?: ModelType;
 }
 
-export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) => {
+export const PoseCamera = ({ 
+  onPoseDetected, 
+  className = '',
+  smoothing = 0.6,
+  modelType = 'lightning'
+}: PoseCameraProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const backendRef = useRef<PoseBackend | null>(null);
-  const smootherRef = useRef<KeypointSmoother>(new KeypointSmoother(0.5));
+  const smootherRef = useRef<KeypointSmoother>(new KeypointSmoother(smoothing));
   const animationRef = useRef<number>();
+  const detectionIntervalRef = useRef<number>();
+  const lastPoseTimeRef = useRef<number>(Date.now());
 
   const [isActive, setIsActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [mirrorVideo, setMirrorVideo] = useState(true);
-  const [flipKeypoints, setFlipKeypoints] = useState(true);
-  const [modelType, setModelType] = useState<ModelType>('lightning');
-  const [smoothing, setSmoothing] = useState(0.5);
+  const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [fps, setFps] = useState(0);
+  const [noPoseWarning, setNoPoseWarning] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -60,8 +63,9 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
     try {
       setIsLoading(true);
       setError('');
+      setNoPoseWarning(false);
 
-      // Request camera with specific constraints
+      // Auto-detect front camera
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
@@ -72,6 +76,7 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
       });
 
       streamRef.current = stream;
+      setIsFrontCamera(true); // front camera for user-facing
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -87,6 +92,10 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
         const canvas = canvasRef.current;
         if (canvas && video) {
           const dpr = window.devicePixelRatio || 1;
+          
+          // Set intrinsic sizes
+          video.width = video.videoWidth;
+          video.height = video.videoHeight;
           canvas.width = video.videoWidth * dpr;
           canvas.height = video.videoHeight * dpr;
           canvas.style.width = `${video.videoWidth}px`;
@@ -94,7 +103,7 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
 
           const ctx = canvas.getContext('2d');
           if (ctx) {
-            ctx.scale(dpr, dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           }
         }
       }
@@ -106,6 +115,7 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
 
       setIsActive(true);
       setIsLoading(false);
+      lastPoseTimeRef.current = Date.now();
 
       // Start detection loop
       startDetectionLoop();
@@ -121,6 +131,10 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
       cancelAnimationFrame(animationRef.current);
     }
 
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+    }
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -134,14 +148,18 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
     smootherRef.current.reset();
     setIsActive(false);
     setFps(0);
+    setNoPoseWarning(false);
   };
 
   const startDetectionLoop = () => {
     let lastTime = Date.now();
     let frameCount = 0;
+    const TARGET_FPS = 15;
+    const FRAME_INTERVAL = 1000 / TARGET_FPS;
+    const NO_POSE_TIMEOUT = 2000;
 
     const detect = async () => {
-      if (!isActive || !videoRef.current || !canvasRef.current || !backendRef.current) {
+      if (!videoRef.current || !canvasRef.current || !backendRef.current) {
         return;
       }
 
@@ -150,21 +168,27 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
       const ctx = canvas.getContext('2d');
 
       if (!ctx || video.readyState !== 4) {
-        animationRef.current = requestAnimationFrame(detect);
         return;
       }
 
       try {
-        // Estimate poses
+        // Estimate poses with tf.tidy for memory management
         let poses = await backendRef.current.estimate(video);
 
         // Apply smoothing
         if (poses.length > 0) {
           poses = smootherRef.current.smooth(poses);
+          lastPoseTimeRef.current = Date.now();
+          setNoPoseWarning(false);
+        } else {
+          // Check for no pose timeout
+          if (Date.now() - lastPoseTimeRef.current > NO_POSE_TIMEOUT) {
+            setNoPoseWarning(true);
+          }
         }
 
-        // Flip keypoints if needed
-        if (flipKeypoints && poses.length > 0) {
+        // Auto-flip keypoints for front camera
+        if (isFrontCamera && poses.length > 0) {
           poses = poses.map(pose => ({
             ...pose,
             keypoints: pose.keypoints.map(kp => ({
@@ -196,11 +220,10 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
       } catch (err) {
         console.error('Detection error:', err);
       }
-
-      animationRef.current = requestAnimationFrame(detect);
     };
 
-    detect();
+    // Use setInterval for consistent FPS
+    detectionIntervalRef.current = window.setInterval(detect, FRAME_INTERVAL);
   };
 
   const drawSkeleton = (
@@ -220,7 +243,13 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
         const kp1 = keypointMap.get(start);
         const kp2 = keypointMap.get(end);
 
-        if (kp1 && kp2 && kp1.score && kp2.score && kp1.score > 0.3 && kp2.score > 0.3) {
+        if (
+          kp1 && kp2 && 
+          kp1.score && kp2.score && 
+          kp1.score > 0.3 && kp2.score > 0.3 &&
+          !isNaN(kp1.x) && !isNaN(kp1.y) &&
+          !isNaN(kp2.x) && !isNaN(kp2.y)
+        ) {
           ctx.beginPath();
           ctx.moveTo(kp1.x, kp1.y);
           ctx.lineTo(kp2.x, kp2.y);
@@ -230,7 +259,10 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
 
       // Draw keypoints
       keypoints.forEach(kp => {
-        if (kp.score && kp.score > 0.3) {
+        if (
+          kp.score && kp.score > 0.3 &&
+          !isNaN(kp.x) && !isNaN(kp.y)
+        ) {
           ctx.fillStyle = 'rgba(34, 197, 94, 1)';
           ctx.beginPath();
           ctx.arc(kp.x, kp.y, 5, 0, 2 * Math.PI);
@@ -252,17 +284,20 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
     ctx.fillText(`FPS: ${fps}`, 10, 40);
   };
 
-  const handleModelChange = async (value: ModelType) => {
-    setModelType(value);
-    if (isActive && backendRef.current) {
-      setIsLoading(true);
-      await backendRef.current.dispose();
-      const backend = getBackend(value);
-      await backend.init();
-      backendRef.current = backend;
-      setIsLoading(false);
-    }
-  };
+
+  // Handle tab visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && detectionIntervalRef.current) {
+        clearInterval(detectionIntervalRef.current);
+      } else if (!document.hidden && isActive) {
+        startDetectionLoop();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isActive]);
 
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
@@ -274,16 +309,21 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
           muted
           className="w-full h-full object-contain"
           style={{
-            transform: mirrorVideo ? 'scaleX(-1)' : 'none',
+            transform: isFrontCamera ? 'scaleX(-1)' : 'none',
           }}
         />
         <canvas
           ref={canvasRef}
-          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+          className="absolute inset-0 w-full h-full pointer-events-none z-10"
           style={{
             mixBlendMode: 'screen',
           }}
         />
+        {noPoseWarning && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-yellow-500/90 text-black px-4 py-2 rounded-lg text-sm font-medium">
+            Reacquiring pose...
+          </div>
+        )}
         {error && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80">
             <p className="text-destructive text-center px-4">{error}</p>
@@ -291,66 +331,16 @@ export const PoseCamera = ({ onPoseDetected, className = '' }: PoseCameraProps) 
         )}
       </div>
 
-      <div className="flex flex-col gap-4 p-4 bg-card rounded-lg border">
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={isActive ? stopCamera : startCamera}
-            disabled={isLoading}
-            variant={isActive ? 'destructive' : 'default'}
-            className="flex-1"
-          >
-            {isActive ? <CameraOff className="mr-2" /> : <Camera className="mr-2" />}
-            {isLoading ? 'Loading...' : isActive ? 'Stop Camera' : 'Start Camera'}
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="mirror-video">Mirror Video</Label>
-            <Switch
-              id="mirror-video"
-              checked={mirrorVideo}
-              onCheckedChange={setMirrorVideo}
-              disabled={!isActive}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="flip-keypoints">Flip Keypoints</Label>
-            <Switch
-              id="flip-keypoints"
-              checked={flipKeypoints}
-              onCheckedChange={setFlipKeypoints}
-              disabled={!isActive}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Model</Label>
-          <Select value={modelType} onValueChange={handleModelChange} disabled={isLoading}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="lightning">MoveNet Lightning (Fast)</SelectItem>
-              <SelectItem value="thunder">MoveNet Thunder (Accurate)</SelectItem>
-              <SelectItem value="blazepose-lite">BlazePose Lite</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Smoothing: {smoothing.toFixed(2)}</Label>
-          <Slider
-            value={[smoothing]}
-            onValueChange={([value]) => setSmoothing(value)}
-            min={0.3}
-            max={0.8}
-            step={0.05}
-            disabled={!isActive}
-          />
-        </div>
+      <div className="flex items-center gap-2">
+        <Button
+          onClick={isActive ? stopCamera : startCamera}
+          disabled={isLoading}
+          variant={isActive ? 'destructive' : 'default'}
+          className="flex-1"
+        >
+          {isActive ? <CameraOff className="mr-2" /> : <Camera className="mr-2" />}
+          {isLoading ? 'Loading...' : isActive ? 'Stop Camera' : 'Start Camera'}
+        </Button>
       </div>
     </div>
   );
