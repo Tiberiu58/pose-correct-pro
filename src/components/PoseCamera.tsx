@@ -94,7 +94,7 @@ export const PoseCamera = ({
   const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [fps, setFps] = useState(0);
   const [noPoseWarning, setNoPoseWarning] = useState(false);
-  const [videoAspectRatio, setVideoAspectRatio] = useState<string>('4 / 3');
+  const [videoAspectRatio, setVideoAspectRatio] = useState<number>(4/3);
 
   const TARGET_FPS = 15;
   const FRAME_INTERVAL = 1000 / TARGET_FPS;
@@ -138,10 +138,10 @@ export const PoseCamera = ({
         });
         await videoRef.current.play();
 
-        // Detect actual camera aspect ratio and update container
+        // Detect actual camera aspect ratio
         const actualWidth = videoRef.current.videoWidth;
         const actualHeight = videoRef.current.videoHeight;
-        setVideoAspectRatio(`${actualWidth} / ${actualHeight}`);
+        setVideoAspectRatio(actualWidth / actualHeight);
 
         videoRef.current.width = actualWidth;
         videoRef.current.height = actualHeight;
@@ -338,10 +338,11 @@ export const PoseCamera = ({
     <div className={`flex flex-col gap-4 ${className}`}>
       <div
         ref={containerRef}
-        className="relative bg-black rounded-lg overflow-hidden w-full"
+        className="relative bg-black rounded-lg overflow-hidden mx-auto"
         style={{ 
-          aspectRatio: videoAspectRatio,
-          transform: 'rotate(180deg)',
+          width: `min(100%, ${100 / videoAspectRatio}vh)`,
+          height: `min(${100 * videoAspectRatio}vw, 100vh)`,
+          transform: 'rotate(90deg)',
           transformOrigin: 'center center'
         }}
       >
@@ -352,16 +353,13 @@ export const PoseCamera = ({
   playsInline
   muted
   className="absolute inset-0 w-full h-full object-cover"
-  style={{ transform: 'scaleX(-1) rotate(-180deg)' }}
+  style={{ transform: 'scaleX(-1)' }}
 />
 
         <canvas
           ref={canvasRef}
           className="absolute inset-0 pointer-events-none z-10"
-          style={{ 
-            mixBlendMode: 'screen',
-            transform: 'rotate(-180deg)'
-          }}
+          style={{ mixBlendMode: 'screen' }}
         />
         {noPoseWarning && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-yellow-500/90 text-black px-4 py-2 rounded-lg text-sm font-medium">
