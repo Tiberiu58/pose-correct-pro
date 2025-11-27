@@ -135,60 +135,45 @@ export const PoseCamera = ({
   };
 
   async function startCamera() {
+    const video = videoRef.current;
+    if (!video) return;
+    setError(null);
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      setError('');
-      setNoPoseWarning(false);
-
-      // Detect native aspect ratio (mobile vs desktop)
-      const aspectRatio = window.screen?.height && window.screen?.width 
-        ? window.screen.height / window.screen.width 
-        : 4 / 3; // fallback to 4:3 for desktop
-      
-      const idealWidth = 640;
-      const idealHeight = Math.round(idealWidth * aspectRatio);
-
+      const facingMode = isFrontCamera ? 'user' : 'environment';
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user',
-          width: { ideal: idealWidth },
-          height: { ideal: idealHeight },
-          frameRate: { ideal: 20, max: 30 },
+        video: { 
+          facingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         },
-        audio: false,
+      });
+      video.srcObject = stream;
+      streamRef.current = stream;
+
+      await new Promise<void>((res) => {
+        video.onloadedmetadata = () => {
+          setVideoAspectRatio(video.videoHeight / video.videoWidth);
+          res();
+        };
       });
 
-      streamRef.current = stream;
-      setIsFrontCamera(true);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await new Promise<void>((resolve) => {
-          if (!videoRef.current) return resolve();
-          videoRef.current.onloadedmetadata = () => resolve();
-        });
-        await videoRef.current.play();
-
-        // Detect actual camera aspect ratio
-        const actualWidth = videoRef.current.videoWidth;
-        const actualHeight = videoRef.current.videoHeight;
-        setVideoAspectRatio(actualWidth / actualHeight);
-
-        videoRef.current.width = actualWidth;
-        videoRef.current.height = actualHeight;
-      }
-
+      // Initialize backend with flipHorizontal for front camera
       const backend = getBackend(modelType);
       await backend.init();
+      
+      // Set flipHorizontal to match camera - flip for front camera
+      if (backend.name === 'tfjs' && 'setFlipHorizontal' in backend) {
+        (backend as any).setFlipHorizontal(isFrontCamera);
+      }
+      
       backendRef.current = backend;
-
       setIsActive(true);
-      setIsLoading(false);
-      lastPoseTimeRef.current = Date.now();
       startDetectionLoop();
-    } catch (err) {
-      console.error('Error starting camera:', err);
-      setError('Failed to access camera. Please check permissions.');
+    } catch (err: any) {
+      console.error('Camera error:', err);
+      setError(err.message || 'Failed to access camera');
+    } finally {
       setIsLoading(false);
     }
   }
@@ -271,14 +256,9 @@ export const PoseCamera = ({
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        // 6) Go to render rect, mirror (if front cam), then scale to fit model -> display
+        // 6) Go to render rect, then scale to fit model -> display
         ctx.save();
         ctx.translate(renderX, renderY);
-
-        if (isFrontCamera) {
-          ctx.translate(renderW, 0);
-          ctx.scale(-1, 1); // mirror in the same space as drawing
-        }
 
         const sx = renderW / video.videoWidth;
         const sy = renderH / video.videoHeight;
@@ -390,15 +370,15 @@ export const PoseCamera = ({
           maxHeight: '70vh'
         }}
       >
-        {/* IMPORTANT: no CSS flip on the video; we mirror only in canvas math */}
-       <video
-  ref={videoRef}
-  autoPlay
-  playsInline
-  muted
-  className="absolute inset-0 w-full h-full object-cover"
-  style={{ transform: 'scaleX(-1)' }}
-/>
+        {/* Video element displays the camera feed */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ transform: isFrontCamera ? 'scaleX(-1)' : 'none' }}
+        />
 
         <canvas
           ref={canvasRef}
