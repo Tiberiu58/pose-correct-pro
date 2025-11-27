@@ -158,13 +158,13 @@ export const PoseCamera = ({
         };
       });
 
-      // Initialize backend with flipHorizontal for front camera
+      // Initialize backend - no flipping at model level
       const backend = getBackend(modelType);
       await backend.init();
       
-      // Set flipHorizontal to match camera - flip for front camera
+      // We'll handle flipping in canvas rendering instead
       if (backend.name === 'tfjs' && 'setFlipHorizontal' in backend) {
-        (backend as any).setFlipHorizontal(isFrontCamera);
+        (backend as any).setFlipHorizontal(false);
       }
       
       backendRef.current = backend;
@@ -256,9 +256,15 @@ export const PoseCamera = ({
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        // 6) Go to render rect, then scale to fit model -> display
+        // 6) Go to render rect, mirror for front camera, then scale to fit model -> display
         ctx.save();
         ctx.translate(renderX, renderY);
+
+        // Mirror the canvas drawing to match the video flip
+        if (isFrontCamera) {
+          ctx.translate(renderW, 0);
+          ctx.scale(-1, 1);
+        }
 
         const sx = renderW / video.videoWidth;
         const sy = renderH / video.videoHeight;
