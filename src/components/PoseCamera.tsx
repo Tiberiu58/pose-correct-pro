@@ -266,6 +266,9 @@ export const PoseCamera = ({
           ctx.scale(-1, 1);
         }
 
+        // Adjust skeleton position (40px right, 10px up)
+        ctx.translate(40, -10);
+
         const sx = renderW / video.videoWidth;
         const sy = renderH / video.videoHeight;
         ctx.scale(sx, sy);
