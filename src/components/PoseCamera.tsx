@@ -112,6 +112,8 @@ export const PoseCamera = ({
   const [selectedExercise, setSelectedExercise] = useState<'squat' | 'pushup'>('squat');
   const [calibrationMode, setCalibrationMode] = useState(false);
   const [smoothingValue, setSmoothingValue] = useState(0.4);
+  const [skeletonOffset, setSkeletonOffset] = useState({ x: 0, y: 0 });
+  const [isCalibrated, setIsCalibrated] = useState(false);
 
   const TARGET_FPS = 20;
   const FRAME_INTERVAL = 1000 / TARGET_FPS;
@@ -198,6 +200,8 @@ export const PoseCamera = ({
     setNoPoseWarning(false);
     setRepCount(0);
     setCurrentAngle(0);
+    setIsCalibrated(false);
+    setSkeletonOffset({ x: 0, y: 0 });
   }
 
   function startDetectionLoop() {
@@ -240,7 +244,36 @@ export const PoseCamera = ({
         if (poses.length > 0) {
           poses = smootherRef.current.smooth(poses);
           
-          // 4.5) Update rep counter
+          // 4.5) Auto-calibrate on first pose detection
+          if (!isCalibrated) {
+            const pose = poses[0];
+            // Calculate body center from hips and shoulders
+            const leftShoulder = pose.keypoints.find(kp => kp.name === 'left_shoulder');
+            const rightShoulder = pose.keypoints.find(kp => kp.name === 'right_shoulder');
+            const leftHip = pose.keypoints.find(kp => kp.name === 'left_hip');
+            const rightHip = pose.keypoints.find(kp => kp.name === 'right_hip');
+            
+            if (leftShoulder && rightShoulder && leftHip && rightHip) {
+              // Calculate body center in video space
+              const bodyCenterX = (leftShoulder.x + rightShoulder.x + leftHip.x + rightHip.x) / 4;
+              const bodyCenterY = (leftShoulder.y + rightShoulder.y + leftHip.y + rightHip.y) / 4;
+              
+              // Calculate video center
+              const videoCenterX = video.videoWidth / 2;
+              const videoCenterY = video.videoHeight / 2;
+              
+              // Calculate offset needed (in display space after scaling)
+              const sx = renderW / video.videoWidth;
+              const sy = renderH / video.videoHeight;
+              const offsetX = (videoCenterX - bodyCenterX) * sx;
+              const offsetY = (videoCenterY - bodyCenterY) * sy;
+              
+              setSkeletonOffset({ x: offsetX, y: offsetY });
+              setIsCalibrated(true);
+            }
+          }
+          
+          // 4.6) Update rep counter
           const repState = repCounterRef.current.update(poses);
           setRepCount(repState.count);
           setCurrentAngle(repState.angle);
@@ -266,8 +299,8 @@ export const PoseCamera = ({
           ctx.scale(-1, 1);
         }
 
-        // Adjust skeleton position (40px right, 10px up)
-        ctx.translate(40, -10);
+        // Apply auto-calibrated offset to center skeleton on body
+        ctx.translate(skeletonOffset.x, skeletonOffset.y);
 
         const sx = renderW / video.videoWidth;
         const sy = renderH / video.videoHeight;
